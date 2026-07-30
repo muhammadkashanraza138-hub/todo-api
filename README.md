@@ -1,70 +1,59 @@
-# Todo API using FastAPI
+# Todo API with SQLite
 
 ## Project Description
 
-This is a simple CRUD (Create, Read, Update, Delete) REST API built using FastAPI. It allows users to manage a list of tasks through different HTTP methods.
+This project is a CRUD (Create, Read, Update, Delete) Todo API built using FastAPI and SQLite. It allows users to create, read, update, and delete tasks. Unlike the previous version, tasks are stored permanently in a SQLite database, so the data is not lost when the server restarts.
 
----
+## Why SQLite?
 
-## Features
+SQLite was chosen because it is lightweight, easy to use, and does not require a separate database server. It stores all data in a single file, making it suitable for beginner backend projects.
 
-- Create a new task
-- Read all tasks
-- Update an existing task
-- Delete a task
-- Interactive API documentation using Swagger UI
+## Database Location
 
----
+The database file is stored in the project folder as:
 
-## Technologies Used
-
-- Python 3
-- FastAPI
-- Uvicorn
-- Pydantic
-
----
+```
+tasks.db
+```
 
 ## How to Run the Project
 
 1. Clone the repository.
-2. Open the project folder.
-3. Create a virtual environment.
-4. Activate the virtual environment.
-5. Install dependencies:
 
-```
-pip install fastapi uvicorn
+```bash
+git clone https://github.com/muhammadkashanraza138-hub/todo-api.git
 ```
 
-6. Run the server:
+2. Go to the project folder.
 
+```bash
+cd todo-api
 ```
+
+3. Activate the virtual environment.
+
+```bash
+source venv/bin/activate
+```
+
+4. Start the FastAPI server.
+
+```bash
 uvicorn main:app --reload
 ```
 
-7. Open:
+5. Open Swagger UI.
 
 ```
 http://127.0.0.1:8000/docs
 ```
 
-to test the API.
+## Example SQL Query
 
----
+```sql
+SELECT * FROM tasks;
+```
 
-## API Endpoints
+## Database Screenshot
 
-| Method | Endpoint | Description |
-|---------|----------|-------------|
-| GET | / | Welcome Message |
-| GET | /tasks | Get All Tasks |
-| POST | /tasks | Add New Task |
-| PUT | /tasks/{task_id} | Update Task |
-| DELETE | /tasks/{task_id} | Delete Task |
-
----
-
-## Author
-
-Muhammad Kashan Raza
+![Database Screenshot](database.png)
