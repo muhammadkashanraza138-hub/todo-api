@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import sqlite3
 
@@ -35,14 +35,17 @@ if count == 0:
     )
     conn.commit()
 
+
 # Model for a Task
 class Task(BaseModel):
     title: str
+
 
 # Home Page
 @app.get("/")
 def home():
     return {"message": "Welcome to my first FastAPI application!"}
+
 
 # Read All Tasks
 @app.get("/tasks")
@@ -61,14 +64,15 @@ def get_tasks():
 
     return tasks
 
-# Read One Task by ID
+
+# Read One Task
 @app.get("/tasks/{task_id}")
 def get_task(task_id: int):
     cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
     row = cursor.fetchone()
 
     if row is None:
-        return {"error": "Task not found"}
+        raise HTTPException(status_code=404, detail="Task not found")
 
     return {
         "id": row[0],
@@ -76,12 +80,13 @@ def get_task(task_id: int):
         "done": bool(row[2])
     }
 
+
 # Create a New Task
-@app.post("/tasks")
+@app.post("/tasks", status_code=201)
 def add_task(new_task: Task):
 
     if new_task.title.strip() == "":
-        return {"error": "Title is required"}
+        raise HTTPException(status_code=400, detail="Title is required")
 
     cursor.execute(
         "INSERT INTO tasks (title, done) VALUES (?, ?)",
@@ -94,15 +99,19 @@ def add_task(new_task: Task):
         "message": "Task added successfully!"
     }
 
+
 # Update a Task
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, updated_task: Task):
+
+    if updated_task.title.strip() == "":
+        raise HTTPException(status_code=400, detail="Title is required")
 
     cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
     row = cursor.fetchone()
 
     if row is None:
-        return {"error": "Task not found"}
+        raise HTTPException(status_code=404, detail="Task not found")
 
     cursor.execute(
         "UPDATE tasks SET title = ? WHERE id = ?",
@@ -115,6 +124,7 @@ def update_task(task_id: int, updated_task: Task):
         "message": "Task updated successfully!"
     }
 
+
 # Delete a Task
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
@@ -123,7 +133,7 @@ def delete_task(task_id: int):
     row = cursor.fetchone()
 
     if row is None:
-        return {"error": "Task not found"}
+        raise HTTPException(status_code=404, detail="Task not found")
 
     cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     conn.commit()
