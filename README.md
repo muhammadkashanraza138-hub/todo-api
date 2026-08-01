@@ -1,59 +1,83 @@
-# Todo API with SQLite
+# Todo API with PostgreSQL
 
 ## Project Description
 
-This project is a CRUD (Create, Read, Update, Delete) Todo API built using FastAPI and SQLite. It allows users to create, read, update, and delete tasks. Unlike the previous version, tasks are stored permanently in a SQLite database, so the data is not lost when the server restarts.
+This project is a CRUD (Create, Read, Update, Delete) Todo API built using FastAPI and PostgreSQL running inside Docker.
 
-## Why SQLite?
+## Technologies Used
 
-SQLite was chosen because it is lightweight, easy to use, and does not require a separate database server. It stores all data in a single file, making it suitable for beginner backend projects.
+- FastAPI
+- PostgreSQL
+- Docker
+- Docker Compose
+- Python
 
-## Database Location
+## How to Run
 
-The database file is stored in the project folder as:
-
-```
-tasks.db
-```
-
-## How to Run the Project
-
-1. Clone the repository.
+Clone the repository:
 
 ```bash
 git clone https://github.com/muhammadkashanraza138-hub/todo-api.git
 ```
 
-2. Go to the project folder.
+Go to the project folder:
 
 ```bash
 cd todo-api
 ```
 
-3. Activate the virtual environment.
+Create a virtual environment:
 
 ```bash
+python3 -m venv venv
 source venv/bin/activate
 ```
 
-4. Start the FastAPI server.
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+Start FastAPI:
 
 ```bash
 uvicorn main:app --reload
 ```
 
-5. Open Swagger UI.
+Open Swagger UI:
 
 ```
 http://127.0.0.1:8000/docs
 ```
 
-## Example SQL Query
+## Environment Variables
 
-```sql
-SELECT * FROM tasks;
+Create a `.env` file using `.env.example`.
+
+## Database
+
+PostgreSQL runs inside Docker.
+
+## Persistence
+
+Data was tested by:
+
+1. Creating tasks.
+2. Running:
+
+```bash
+docker compose down
+docker compose up -d
 ```
 
-## Database Screenshot
+3. Restarting FastAPI.
+4. Verifying that all tasks were still present.
 
-![Database Screenshot](database.png)
+This confirms the database persists using a Docker volume.
