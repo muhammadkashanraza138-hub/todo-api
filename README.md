@@ -1,83 +1,138 @@
-# Todo API with PostgreSQL
+# Assignment 04 - FastAPI Authentication with Supabase
 
-## Project Description
+## Description
 
-This project is a CRUD (Create, Read, Update, Delete) Todo API built using FastAPI and PostgreSQL running inside Docker.
+This project is a FastAPI REST API that uses PostgreSQL for storing tasks and Supabase Authentication for user management. Users can sign up, log in, log out, and access protected endpoints using JWT authentication.
+
+---
 
 ## Technologies Used
 
+- Python 3
 - FastAPI
 - PostgreSQL
-- Docker
-- Docker Compose
-- Python
+- Supabase
+- psycopg2
+- python-dotenv
+- Uvicorn
 
-## How to Run
+---
 
-Clone the repository:
+## Installation
 
-```bash
-git clone https://github.com/muhammadkashanraza138-hub/todo-api.git
-```
-
-Go to the project folder:
+### Clone the repository
 
 ```bash
-cd todo-api
+git clone <your-github-repository-url>
+cd <repository-name>
 ```
 
-Create a virtual environment:
+### Create a virtual environment
 
 ```bash
 python3 -m venv venv
+```
+
+### Activate it
+
+Linux/macOS
+
+```bash
 source venv/bin/activate
 ```
 
-Install dependencies:
+Windows
+
+```bash
+venv\Scripts\activate
+```
+
+### Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Start PostgreSQL:
+---
 
-```bash
-docker compose up -d
+## Environment Variables
+
+Create a `.env` file.
+
+```env
+DB_HOST=
+DB_PORT=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+
+SUPABASE_URL=
+SUPABASE_KEY=
 ```
 
-Start FastAPI:
+---
+
+## Run the project
 
 ```bash
 uvicorn main:app --reload
 ```
 
-Open Swagger UI:
+Swagger UI:
 
 ```
 http://127.0.0.1:8000/docs
 ```
 
-## Environment Variables
+---
 
-Create a `.env` file using `.env.example`.
+## API Endpoints
 
-## Database
+| Method | Endpoint | Authentication |
+|---------|----------|----------------|
+| GET | / | No |
+| POST | /auth/signup | No |
+| POST | /auth/login | No |
+| POST | /auth/logout | Yes |
+| GET | /public/info | No |
+| GET | /protected/profile | Yes |
+| GET | /protected/dashboard | Yes |
+| GET | /tasks | No |
+| GET | /tasks/{id} | No |
+| POST | /tasks | No |
+| PUT | /tasks/{id} | No |
+| DELETE | /tasks/{id} | No |
 
-PostgreSQL runs inside Docker.
+---
 
-## Persistence
+## Authentication
 
-Data was tested by:
+This project uses Supabase Authentication.
 
-1. Creating tasks.
-2. Running:
+After logging in, an Access Token (JWT) is returned.
 
-```bash
-docker compose down
-docker compose up -d
+Use the token inside the Authorization header.
+
+```
+Bearer <your_access_token>
 ```
 
-3. Restarting FastAPI.
-4. Verifying that all tasks were still present.
+Swagger's **Authorize** button can also be used for authenticated requests.
 
-This confirms the database persists using a Docker volume.
+---
+
+## Screenshot
+
+Add your Swagger UI screenshot here.
+
+Example:
+
+```
+docs/swagger.png
+```
+
+---
+
+## Author
+
+Muhammad Kashan Raza
