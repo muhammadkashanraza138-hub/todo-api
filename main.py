@@ -1,21 +1,23 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Depends, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-import os
-import psycopg2
 from dotenv import load_dotenv
 from supabase import create_client, Client
+import psycopg2
+import os
+
 
 load_dotenv()
 
 app = FastAPI(
-    title="Todo API with Authentication",
-    description="FastAPI Todo API using PostgreSQL and Supabase Authentication",
-    version="1.0.0"
+    title="Todo API with Supabase Authentication"
 )
-security = HTTPBearer()
 
-# Connect to PostgreSQL
+
+# -----------------------------
+# PostgreSQL Database Connection
+# -----------------------------
+
 conn = psycopg2.connect(
     host=os.getenv("DB_HOST"),
     port=os.getenv("DB_PORT"),
@@ -26,58 +28,58 @@ conn = psycopg2.connect(
 
 cursor = conn.cursor()
 
-# Connect to Supabase
+
+# -----------------------------
+# Supabase Connection
+# -----------------------------
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Create the tasks table if it doesn't exist
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS tasks (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    done BOOLEAN NOT NULL
+supabase: Client = create_client(
+    SUPABASE_URL,
+    SUPABASE_KEY
 )
-""")
-conn.commit()
-
-# Insert example tasks only if the table is empty
-cursor.execute("SELECT COUNT(*) FROM tasks")
-count = cursor.fetchone()[0]
-
-if count == 0:
-    example_tasks = [
-        ("Learn FastAPI", False),
-        ("Complete FlyRank Assignment", False),
-        ("Practice Python", False)
-    ]
-
-    cursor.executemany(
-        "INSERT INTO tasks (title, done) VALUES (%s, %s)",
-        example_tasks
-    )
-    conn.commit()
 
 
-# Model for a Task
+# -----------------------------
+# Security
+# -----------------------------
+
+security = HTTPBearer()
+
+
+# -----------------------------
+# Models
+# -----------------------------
+
 class Task(BaseModel):
-    title: str
+    task: str
 
 
-# Model for User
 class User(BaseModel):
     email: str
     password: str
 
-def verify_user(
+
+# -----------------------------
+# Reusable Protected Route Dependency
+# -----------------------------
+
+def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-
     token = credentials.credentials
 
     try:
         result = supabase.auth.get_user(token)
+
+        if result.user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token"
+            )
+
         return result.user
 
     except Exception:
@@ -87,42 +89,70 @@ def verify_user(
         )
 
 
+# -----------------------------
 # Home Page
+# -----------------------------
+
 @app.get("/")
 def home():
     return {
-        "message": "Server running and connected to Supabase"
+        "message": "Welcome to my Todo API!"
     }
 
 
-# ---------------- AUTH ROUTES ---------------- #
+# -----------------------------
+# Public Route
+# -----------------------------
 
+@app.get("/public/info")
+def public_info():
+    return {
+        "message": "This is public information. No login is required."
+    }
+
+
+# -----------------------------
 # Signup
+# -----------------------------
+
 @app.post("/auth/signup", status_code=201)
 def signup(user: User):
 
     if user.email.strip() == "" or user.password.strip() == "":
         raise HTTPException(
             status_code=400,
-            detail="Email and Password are required"
+            detail="Email and password are required"
         )
 
-    result = supabase.auth.sign_up({
-        "email": user.email,
-        "password": user.password
-    })
+    try:
+        result = supabase.auth.sign_up({
+            "email": user.email,
+            "password": user.password
+        })
 
-    return result
+        return {
+            "message": "Signup successful",
+            "user": result.user
+        }
+
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Signup failed. Email may already be registered."
+        )
 
 
+# -----------------------------
 # Login
+# -----------------------------
+
 @app.post("/auth/login")
 def login(user: User):
 
     if user.email.strip() == "" or user.password.strip() == "":
         raise HTTPException(
             status_code=400,
-            detail="Email and Password are required"
+            detail="Email and password are required"
         )
 
     try:
@@ -131,13 +161,8 @@ def login(user: User):
             "password": user.password
         })
 
-        if result.session is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid login credentials"
-            )
-
         return {
+            "message": "Login successful",
             "access_token": result.session.access_token,
             "refresh_token": result.session.refresh_token
         }
@@ -148,116 +173,131 @@ def login(user: User):
             detail="Invalid login credentials"
         )
 
-# Public Route
-@app.get("/public/info")
-def public_info():
+
+# -----------------------------
+# Logout
+# -----------------------------
+
+@app.post("/auth/logout", status_code=204)
+def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+
+    token = credentials.credentials
+
+    try:
+        supabase.auth.get_user(token)
+        return Response(status_code=204)
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+
+# -----------------------------
+# Protected Profile Route
+# -----------------------------
+
+@app.get("/protected/profile")
+def protected_profile(user=Depends(get_current_user)):
+
     return {
-        "message": "Welcome stranger! This info is public."
+        "id": user.id,
+        "email": user.email,
+        "created_at": user.created_at
     }
 
 
-# ---------------- TODO ROUTES ---------------- #
+# -----------------------------
+# Protected Dashboard Route
+# -----------------------------
 
+@app.get("/protected/dashboard")
+def protected_dashboard(user=Depends(get_current_user)):
+
+    return {
+        "message": "Welcome to your protected dashboard!",
+        "user_id": user.id,
+        "email": user.email
+    }
+
+
+# -----------------------------
 # Read All Tasks
+# -----------------------------
+
 @app.get("/tasks")
 def get_tasks():
-    cursor.execute("SELECT * FROM tasks ORDER BY id")
-    rows = cursor.fetchall()
 
-    tasks = []
-
-    for row in rows:
-        tasks.append({
-            "id": row[0],
-            "title": row[1],
-            "done": row[2]
-        })
-
-    return tasks
-
-
-# Read One Task
-@app.get("/tasks/{task_id}")
-def get_task(task_id: int):
-
-    cursor.execute(
-        "SELECT * FROM tasks WHERE id = %s",
-        (task_id,)
-    )
-
-    row = cursor.fetchone()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+    cursor.execute("SELECT * FROM tasks")
+    tasks = cursor.fetchall()
 
     return {
-        "id": row[0],
-        "title": row[1],
-        "done": row[2]
+        "tasks": tasks
     }
 
 
-# Create a New Task
-@app.post("/tasks", status_code=201)
-def add_task(new_task: Task):
+# -----------------------------
+# Add New Task
+# -----------------------------
 
-    if new_task.title.strip() == "":
-        raise HTTPException(status_code=400, detail="Title is required")
+@app.post("/tasks")
+def add_task(task: Task):
+
+    if task.task.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Task cannot be empty"
+        )
 
     cursor.execute(
-        "INSERT INTO tasks (title, done) VALUES (%s, %s)",
-        (new_task.title, False)
+        "INSERT INTO tasks (task) VALUES (%s) RETURNING id",
+        (task.task,)
     )
 
+    task_id = cursor.fetchone()[0]
     conn.commit()
 
     return {
-        "message": "Task added successfully!"
+        "message": "Task added successfully",
+        "id": task_id,
+        "task": task.task
     }
 
 
-# Update a Task
+# -----------------------------
+# Update Task
+# -----------------------------
+
 @app.put("/tasks/{task_id}")
-def update_task(task_id: int, updated_task: Task):
-
-    if updated_task.title.strip() == "":
-        raise HTTPException(status_code=400, detail="Title is required")
+def update_task(task_id: int, task: Task):
 
     cursor.execute(
-        "SELECT * FROM tasks WHERE id = %s",
-        (task_id,)
-    )
-
-    row = cursor.fetchone()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    cursor.execute(
-        "UPDATE tasks SET title = %s WHERE id = %s",
-        (updated_task.title, task_id)
+        "UPDATE tasks SET task = %s WHERE id = %s",
+        (task.task, task_id)
     )
 
     conn.commit()
 
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found"
+        )
+
     return {
-        "message": "Task updated successfully!"
+        "message": "Task updated successfully"
     }
 
 
-# Delete a Task
+# -----------------------------
+# Delete Task
+# -----------------------------
+
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
-
-    cursor.execute(
-        "SELECT * FROM tasks WHERE id = %s",
-        (task_id,)
-    )
-
-    row = cursor.fetchone()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="Task not found")
 
     cursor.execute(
         "DELETE FROM tasks WHERE id = %s",
@@ -266,47 +306,12 @@ def delete_task(task_id: int):
 
     conn.commit()
 
-    return {
-        "message": "Task deleted successfully!"
-    }
-
-
-@app.get(
-    "/protected/profile",
-    dependencies=[Depends(security)]
-)
-def protected_profile(user=Depends(verify_user)):
-
-    return {
-        "id": user.id,
-        "email": user.email,
-        "created_at": user.created_at
-    }
-@app.get(
-    "/protected/dashboard",
-    dependencies=[Depends(security)]
-)
-def dashboard(user=Depends(verify_user)):
-
-    return {
-        "message": "Welcome to your dashboard!",
-        "email": user.email
-    }
-
-@app.post(
-    "/auth/logout",
-    status_code=204,
-    dependencies=[Depends(security)]
-)
-def logout(user=Depends(verify_user)):
-
-    try:
-        supabase.auth.sign_out()
-
-    except Exception:
+    if cursor.rowcount == 0:
         raise HTTPException(
-            status_code=500,
-            detail="Logout failed"
+            status_code=404,
+            detail="Task not found"
         )
 
-    return
+    return {
+        "message": "Task deleted successfully"
+    }
